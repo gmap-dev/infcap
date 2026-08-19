@@ -5,3 +5,6 @@ __pycache__/
 .env
 dist/
 node_modules/
+.coverage
+coverage.xml
+htmlcov/
