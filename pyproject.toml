@@ -1,7 +1,7 @@
 [project]
 name = "infcap"
 version = "0.1.0"
-description = "TODO: descrever o domínio do infcap"
+description = "Coleta, normaliza e serve candles OHLCV de exchanges de cripto com cache local em SQLite"
 readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }

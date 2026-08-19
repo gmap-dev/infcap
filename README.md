@@ -1,9 +1,20 @@
 # infcap
 
-> **TODO:** descrever o que o infcap faz, para quem, e qual problema resolve.
-> Este parágrafo é o primeiro contato de qualquer pessoa com o projeto — preencher antes do primeiro release.
+Serviço HTTP que coleta, normaliza e serve dados históricos de candles (OHLCV) de exchanges de
+cripto — hoje **Binance** e **Hyperliquid**. Mantém um cache local em SQLite com chave
+`(symbol, interval, open_time)`, faz fetch incremental a partir do último candle conhecido e guarda
+por ativo o rastro de frescor: quando foi buscado pela última vez, se o par ainda está listado e qual
+foi o último erro.
 
-Serviço HTTP em Python 3.12+.
+O problema que resolve é o de quem precisa de série histórica confiável para análise: bater na API da
+exchange a cada execução é lento, sujeito a rate limit e silenciosamente incompleto quando um par é
+deslistado. O infcap coloca uma camada durável e idempotente na frente disso — reprocessar duas vezes
+dá o mesmo resultado, e a ausência de dado é sempre distinguível de dado que nunca foi buscado.
+
+Python 3.12+.
+
+> **Nota:** este parágrafo foi derivado do código, não de um documento de produto. Se o posicionamento
+> for outro, é aqui que se corrige.
 
 ## Requisitos
 
@@ -76,9 +87,13 @@ src/infcap/
 ├── app.py           # fábrica da aplicação
 ├── config.py        # settings validadas por ambiente
 ├── logging.py       # logging estruturado em JSON
-└── api/
-    ├── health.py    # liveness e readiness
-    └── routes.py    # rotas de domínio (placeholder)
+├── api/
+│   ├── health.py    # liveness e readiness
+│   └── routes.py    # rotas de domínio (placeholder)
+├── storage/
+│   ├── schema.py    # DDL do cache SQLite (epoch ms UTC)
+│   └── db.py        # leitura/escrita de klines e metadata
+└── data/            # coletores por exchange (em construção)
 tests/
 ```
 
