@@ -1,25 +1,45 @@
 """Fábrica da aplicação FastAPI."""
 
+import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager
 
 from fastapi import FastAPI
 
 from infcap import __version__
 from infcap.api import health, routes
 from infcap.config import Settings, get_settings
+from infcap.data.binance import BinanceClient
 from infcap.logging import configure_logging
+from infcap.storage.db import connect
 
 logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Abre e fecha recursos de longa duração (pools, clientes, consumidores)."""
+    """Abre e fecha os recursos de longa duração: cache SQLite e cliente HTTP.
+
+    Ambos vivem pelo processo inteiro. Abrir conexão por request desperdiçaria o
+    pool de sockets e recriaria o schema a cada chamada.
+    """
     settings: Settings = app.state.settings
     logger.info("serviço iniciando", extra={"environment": settings.environment})
-    yield
+
+    async with AsyncExitStack() as stack:
+        app.state.db = await stack.enter_async_context(connect(settings.database_path))
+        app.state.binance = await stack.enter_async_context(
+            BinanceClient(
+                base_url=settings.binance_base_url,
+                timeout=settings.request_timeout,
+            )
+        )
+        # Uma conexão SQLite só suporta um escritor: serializa as coletas.
+        app.state.sync_lock = asyncio.Lock()
+        logger.info("recursos prontos", extra={"database": str(settings.database_path)})
+        yield
+
     logger.info("serviço encerrando")
 
 

@@ -9,6 +9,7 @@ authors = [{ name = "Gabriel M. A. Pereira", email = "gmapereira1994@gmail.com" 
 dependencies = [
     "aiosqlite>=0.22.1",
     "fastapi>=0.115",
+    "httpx2>=2.12",
     "numpy>=2.5.2",
     "pandas>=3.0.5",
     "pydantic-settings>=2.6",
@@ -21,7 +22,6 @@ infcap = "infcap.__main__:main"
 [dependency-groups]
 dev = [
     "freezegun>=1.5.5",
-    "httpx2>=2.12",
     "mypy>=1.13",
     "pytest>=8.3",
     "pytest-asyncio>=1.4.0",
