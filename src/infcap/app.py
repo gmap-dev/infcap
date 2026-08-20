@@ -3,7 +3,7 @@
 import asyncio
 import logging
 from collections.abc import AsyncIterator
-from contextlib import AsyncExitStack, asynccontextmanager
+from contextlib import AsyncExitStack, asynccontextmanager, suppress
 
 from fastapi import FastAPI
 
@@ -11,6 +11,7 @@ from infcap import __version__
 from infcap.api import health, routes
 from infcap.config import Settings, get_settings
 from infcap.data.binance import BinanceClient
+from infcap.data.scheduler import run_forever
 from infcap.logging import configure_logging
 from infcap.storage.db import connect
 
@@ -38,9 +39,29 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         # Uma conexão SQLite só suporta um escritor: serializa as coletas.
         app.state.sync_lock = asyncio.Lock()
         logger.info("recursos prontos", extra={"database": str(settings.database_path)})
-        yield
+
+        # O agendador é opt-in: sem ele, o serviço só fala com a exchange quando
+        # alguém bate numa rota.
+        app.state.scheduler = (
+            asyncio.create_task(run_forever(app.state.db, app.state.binance, settings))
+            if settings.sync_enabled
+            else None
+        )
+        try:
+            yield
+        finally:
+            await _stop_scheduler(app.state.scheduler)
 
     logger.info("serviço encerrando")
+
+
+async def _stop_scheduler(task: asyncio.Task[None] | None) -> None:
+    """Cancela o agendador e espera de fato o cancelamento acontecer."""
+    if task is None:
+        return
+    task.cancel()
+    with suppress(asyncio.CancelledError):
+        await task
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
